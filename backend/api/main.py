@@ -1,4 +1,4 @@
-
+from fastapi.middleware.cors import CORSMiddleware
 import json
 from pathlib import Path
 
@@ -8,6 +8,14 @@ app = FastAPI(
     title="Cyber Investigator API",
     description="API for the Cyber Investigator investigation platform",
     version="0.1.0",
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
