@@ -25,6 +25,19 @@ def read_jsonl(file_path):
     return records
 
 
+def read_jsonl_with_fallback(primary_path, fallback_path):
+    """Read the primary file if it exists, otherwise the fallback file.
+
+    An existing primary file is always used, even when it is empty.
+    """
+    primary = Path(primary_path)
+
+    if primary.exists():
+        return read_jsonl(primary)
+
+    return read_jsonl(fallback_path)
+
+
 def append_jsonl(file_path, record):
     """Append one dictionary as a JSONL record."""
     if not isinstance(record, dict):

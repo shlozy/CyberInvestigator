@@ -8,3 +8,7 @@ NETWORK_EVENTS_FILE = DATA_DIR / "network_events.jsonl"
 ALERTS_FILE = DATA_DIR / "alerts.jsonl"
 NETWORK_BASELINE_FILE = DATA_DIR / "network_baseline.json"
 PROCESS_BASELINE_FILE = DATA_DIR / "baseline.json"
+
+# Legacy scripts still write these files to the project root.
+LEGACY_NETWORK_EVENTS_FILE = PROJECT_ROOT / "network_events.jsonl"
+LEGACY_ALERTS_FILE = PROJECT_ROOT / "alerts.jsonl"

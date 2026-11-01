@@ -1,8 +1,8 @@
-from fastapi.middleware.cors import CORSMiddleware
-import json
-from pathlib import Path
-
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+from backend.storage import paths
+from backend.storage.jsonl_store import read_jsonl_with_fallback
 
 app = FastAPI(
     title="Cyber Investigator API",
@@ -18,34 +18,24 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
-NEW_ALERTS_FILE = PROJECT_ROOT / "data" / "alerts.jsonl"
-LEGACY_ALERTS_FILE = PROJECT_ROOT / "alerts.jsonl"
+PROJECT_ROOT = paths.PROJECT_ROOT
+NEW_ALERTS_FILE = paths.ALERTS_FILE
+LEGACY_ALERTS_FILE = paths.LEGACY_ALERTS_FILE
+NEW_NETWORK_EVENTS_FILE = paths.NETWORK_EVENTS_FILE
+LEGACY_NETWORK_EVENTS_FILE = paths.LEGACY_NETWORK_EVENTS_FILE
 
 
 def read_saved_alerts():
     """Read saved alerts without modifying the original file."""
-    if NEW_ALERTS_FILE.exists():
-        alerts_file = NEW_ALERTS_FILE
-    else:
-        alerts_file = LEGACY_ALERTS_FILE
+    return read_jsonl_with_fallback(NEW_ALERTS_FILE, LEGACY_ALERTS_FILE)
 
-    if not alerts_file.exists():
-        return []
 
-    alerts = []
-
-    with alerts_file.open("r", encoding="utf-8") as file:
-        for line in file:
-            try:
-                alert = json.loads(line)
-            except json.JSONDecodeError:
-                continue
-
-            if isinstance(alert, dict):
-                alerts.append(alert)
-
-    return alerts
+def read_saved_network_events():
+    """Read saved network events without modifying the original file."""
+    return read_jsonl_with_fallback(
+        NEW_NETWORK_EVENTS_FILE,
+        LEGACY_NETWORK_EVENTS_FILE,
+    )
 
 
 @app.get("/health")
@@ -65,4 +55,15 @@ def get_alerts():
     return {
         "total": len(alerts),
         "alerts": alerts,
+    }
+
+
+@app.get("/network-events")
+def get_network_events():
+    """Return saved network events exactly as they were recorded."""
+    events = read_saved_network_events()
+
+    return {
+        "total": len(events),
+        "events": events,
     }
