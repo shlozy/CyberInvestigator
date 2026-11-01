@@ -21,17 +21,23 @@ import {
 
 import "./App.css";
 
-const API_URL = "http://127.0.0.1:8000/alerts";
+const API_BASE_URL = "http://127.0.0.1:8000";
+const ALERTS_URL = `${API_BASE_URL}/alerts`;
+const NETWORK_EVENTS_URL = `${API_BASE_URL}/network-events`;
 
 function App() {
   const [alerts, setAlerts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  const [eventsTotal, setEventsTotal] = useState(0);
+  const [eventsLoading, setEventsLoading] = useState(true);
+  const [eventsError, setEventsError] = useState("");
+
   useEffect(() => {
     async function fetchAlerts() {
       try {
-        const response = await fetch(API_URL);
+        const response = await fetch(ALERTS_URL);
 
         if (!response.ok) {
           throw new Error("Failed to fetch alerts");
@@ -48,8 +54,75 @@ function App() {
       }
     }
 
+    async function fetchNetworkEvents() {
+      try {
+        const response = await fetch(NETWORK_EVENTS_URL);
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch network events");
+        }
+
+        const data = await response.json();
+        const events = Array.isArray(data.events) ? data.events : [];
+
+        // Prefer the backend's count; fall back to the returned records.
+        setEventsTotal(
+          typeof data.total === "number" ? data.total : events.length
+        );
+        setEventsError("");
+      } catch (err) {
+        console.error("Network events API error:", err);
+        setEventsError("Unable to load network events.");
+      } finally {
+        setEventsLoading(false);
+      }
+    }
+
+    // Both requests start immediately and finish independently.
     fetchAlerts();
+    fetchNetworkEvents();
   }, []);
+
+  const apiLoading = loading || eventsLoading;
+  const failedRequests = [error, eventsError].filter(Boolean).length;
+
+  let apiStatus = "connected";
+
+  if (apiLoading) {
+    apiStatus = "connecting";
+  } else if (failedRequests === 2) {
+    apiStatus = "offline";
+  } else if (failedRequests === 1) {
+    apiStatus = "partial";
+  }
+
+  const statusBanner = {
+    connecting: {
+      title: "Connecting to investigation backend...",
+      message: "Retrieving saved alerts and network events.",
+      label: "CONNECTING",
+      card: "...",
+    },
+    connected: {
+      title: "Investigation workspace connected",
+      message:
+        "Your dashboard is receiving saved alerts and network events from the backend.",
+      label: "LIVE API",
+      card: "Connected",
+    },
+    partial: {
+      title: "Backend partially available",
+      message: `${error ? "Saved alerts" : "Network events"} could not be loaded. Check the FastAPI server output.`,
+      label: "PARTIAL",
+      card: "Partial",
+    },
+    offline: {
+      title: "Backend connection unavailable",
+      message: "Check that the FastAPI server is running.",
+      label: "OFFLINE",
+      card: "Offline",
+    },
+  }[apiStatus];
 
   const openAlerts = alerts.filter(
     (alert) => alert.status === "OPEN"
@@ -73,13 +146,17 @@ function App() {
     },
     {
       title: "Network Events",
-      value: "96",
-      change: "Connections observed",
+      value: eventsLoading ? "..." : eventsError ? "N/A" : String(eventsTotal),
+      change: eventsError
+        ? "Event data unavailable"
+        : !eventsLoading && eventsTotal === 0
+          ? "No events recorded yet"
+          : "Connections observed",
       icon: Network,
       color: "blue",
     },
     {
-      title: "Open Investigations",
+      title: "Open Alerts",
       value: loading ? "..." : String(openAlerts).padStart(2, "0"),
       change: "Awaiting review",
       icon: FileSearch,
@@ -87,7 +164,7 @@ function App() {
     },
     {
       title: "API Status",
-      value: loading ? "..." : error ? "Offline" : "Connected",
+      value: statusBanner.card,
       change: "Backend connection",
       icon: ShieldCheck,
       color: "green",
@@ -214,26 +291,12 @@ function App() {
           </div>
 
           <div>
-            <strong>
-              {error
-                ? "Backend connection unavailable"
-                : loading
-                  ? "Connecting to investigation backend..."
-                  : "Investigation workspace connected"}
-            </strong>
+            <strong>{statusBanner.title}</strong>
 
-            <p>
-              {error
-                ? "Check that the FastAPI server is running."
-                : loading
-                  ? "Retrieving saved investigation alerts."
-                  : "Your dashboard is receiving saved alerts from the backend."}
-            </p>
+            <p>{statusBanner.message}</p>
           </div>
 
-          <span className="preview-label">
-            {error ? "OFFLINE" : loading ? "CONNECTING" : "LIVE API"}
-          </span>
+          <span className="preview-label">{statusBanner.label}</span>
         </section>
 
         <section className="stats-grid">
